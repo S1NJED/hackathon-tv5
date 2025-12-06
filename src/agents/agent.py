@@ -11,21 +11,7 @@ from ctypes import MeilisearchMultiResponse, SearchHit, SearchResultBlock
 from typing import Dict, Any
 import asyncio
 import threading
-
-def query_meilisearch(text_input: str):
-    url = "https://edge.meilisearch.com/multi-search"
-    payload = {"queries":[{"indexUid":"movies-en-US","q":text_input,"attributesToHighlight":["*"],"highlightPreTag":"__ais-highlight__","highlightPostTag":"__/ais-highlight__","limit":9,"offset":0,"hybrid":{"embedder":"small","semanticRatio":0.7},"rankingScoreThreshold":0.2}]}
-    headers = {
-        "Authorization": "Bearer 6287312fd043d3fca95136cd40483a26154d37dc99aa2e79417f88794a80cd1c",
-        "Content-length": str(len(payload)),
-        "Content-type": "application/json"
-    }
-
-    req = requests.post(url, headers=headers, json=payload)
-    if req.status_code != 200:
-        return "Request failed with status code: " + str(req.status_code)
-    data: MeilisearchMultiResponse = req.json()
-    return data
+from tools.meilisearch import query_meilisearch
     
 class AdvancedAgent:
     def __init__(self, api_key: str, model_name: str = "gemini-2.5-flash"):
@@ -105,14 +91,14 @@ def worker_pool(flag: threading.Event):
     while (not flag.is_set()):
         keys_to_del = []
         for key, val in pool.items():
-            if val['time_to_live'] >= current_time:
+            if val['time_to_live'] <= current_time:
                 keys_to_del.append(key)
 
         for key in keys_to_del:
             del pool[key]['agent']
             del pool[key]
         
-        flag.wait(1)
+        flag.wait(3)
 
 stop_flag: threading.Event = threading.Event()
 worker = threading.Thread(
@@ -129,15 +115,21 @@ async def root(user_msg: str, user_sess_id: str):
     if user_msg == None or len(user_msg) == 0 or user_sess_id == None:
         return {}
     
+    print(pool)
+
     if not pool.get(user_sess_id):
-        
+        print("setting up agent")
         pool[user_sess_id] = {
             "agent": AdvancedAgent(api_key=API_KEY),
             "time_to_live": current_time + (7 * 60) # 7 minutes of TTL
         }
-    
+    else:
+        # Update TTL
+        pool[user_sess_id]['time_to_live'] = current_time + (7 * 60)
+
     user_agent = pool[user_sess_id]['agent']
     res = user_agent.handle_conversation(user_msg)
+
     return res
 
 # worker.join()
