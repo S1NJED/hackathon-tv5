@@ -109,26 +109,27 @@ worker = threading.Thread(
 worker.start()
 
 @app.get('/api/chat')
-async def root(user_msg: str, user_sess_id: str):
+async def root(message: str, session_id: str):
     current_time = int(time.time())
     
-    if user_msg == None or len(user_msg) == 0 or user_sess_id == None:
+    print(message, session_id)
+
+    if message == None or len(message) == 0 or session_id == None:
         return {}
     
     print(pool)
 
-    if not pool.get(user_sess_id):
-        print("setting up agent")
-        pool[user_sess_id] = {
+    if not pool.get(session_id):
+        pool[session_id] = {
             "agent": AdvancedAgent(api_key=API_KEY),
             "time_to_live": current_time + (7 * 60) # 7 minutes of TTL
         }
     else:
         # Update TTL
-        pool[user_sess_id]['time_to_live'] = current_time + (7 * 60)
+        pool[session_id]['time_to_live'] = current_time + (7 * 60)
 
-    user_agent = pool[user_sess_id]['agent']
-    res = user_agent.handle_conversation(user_msg)
+    user_agent = pool[session_id]['agent']
+    res = user_agent.handle_conversation(message)
 
     return res
 
