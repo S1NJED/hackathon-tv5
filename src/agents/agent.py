@@ -1,14 +1,16 @@
 import os
 import json
+import time
 from google import genai
 from dotenv import load_dotenv
-# We need to explicitly import the types for configuration
 from google.genai import types 
 from dacite import from_dict, Config
 import requests
-
+from fastapi import FastAPI
 from ctypes import MeilisearchMultiResponse, SearchHit, SearchResultBlock
 from typing import Dict, Any
+import asyncio
+import threading
 
 def query_meilisearch(text_input: str):
     url = "https://edge.meilisearch.com/multi-search"
@@ -50,12 +52,11 @@ class AdvancedAgent:
         # Pass the config object to the 'config' argument in chats.create
         self.chat = self.client.chats.create(
             model=self.model,
-            config=config # <--- This is the fix!
+            config=config
         )
         print(f"🤖 Advanced Agent initialized with {len(self.tool_functions)} tools.")
         print("-" * 50)
 
-    # (The handle_conversation and main execution loop remains the same)
     def handle_conversation(self, prompt: str):
         
         response = self.chat.send_message(prompt)
@@ -89,22 +90,54 @@ class AdvancedAgent:
         
         return response.text
 
-# --- Running the Agent (Remains the same) ---
-if __name__ == "__main__":
+# ==============================================================================
 
-    load_dotenv()
-    API_KEY = os.getenv("GOOGLE_AI_API_KEY") 
-    
-    try:
-        agent = AdvancedAgent(api_key=API_KEY)
+load_dotenv()
+API_KEY = os.getenv("GOOGLE_AI_API_KEY")
 
-        # Example 1: Read Tool
-        while True:
-            user = input("> ")
-            if user == "quit":
-                exit(0)
-            res = agent.handle_conversation(user)
-            print(res)
+app = FastAPI(title="Movie API")
+pool = {} # session_id <==> agent instance
+
+# Workers that check the agent_pool and their TTL 
+def worker_pool(flag: threading.Event):
+    current_time = int(time.time())
+
+    while (not flag.is_set()):
+        keys_to_del = []
+        for key, val in pool.items():
+            if val['time_to_live'] >= current_time:
+                keys_to_del.append(key)
+
+        for key in keys_to_del:
+            del pool[key]['agent']
+            del pool[key]
         
-    except Exception as err:
-        print(f"An error occurred: {err}")
+        flag.wait(1)
+
+stop_flag: threading.Event = threading.Event()
+worker = threading.Thread(
+    target=worker_pool,
+    args=(stop_flag,),
+    name="worker pool checker"
+)
+worker.start()
+
+@app.get('/api/chat')
+async def root(user_msg: str, user_sess_id: str):
+    current_time = int(time.time())
+    
+    if user_msg == None or len(user_msg) == 0 or user_sess_id == None:
+        return {}
+    
+    if not pool.get(user_sess_id):
+        
+        pool[user_sess_id] = {
+            "agent": AdvancedAgent(api_key=API_KEY),
+            "time_to_live": current_time + (7 * 60) # 7 minutes of TTL
+        }
+    
+    user_agent = pool[user_sess_id]['agent']
+    res = user_agent.handle_conversation(user_msg)
+    return res
+
+# worker.join()
