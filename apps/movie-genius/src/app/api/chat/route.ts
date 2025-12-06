@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // --- Configuration ---
 // Define the URL of your Python FastAPI backend
-const FASTAPI_BASE_URL = 'http://127.0.0.1:8000';
+const FASTAPI_BASE_URL = 'http://localhost:8000';
 const FASTAPI_ENDPOINT = '/api/chat';
 
 /**

@@ -5,8 +5,22 @@
 import { Send, MessageSquare } from 'lucide-react';
 import React, { useState, useRef, useEffect, FormEvent } from 'react';
 import { nanoid } from 'nanoid';
+// --- NEW IMPORTS ---
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+// -------------------
 
-// --- Utility Function to Read Client-Side Cookies ---
+// --- Data Structures ---
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+// --- Constants ---
+const CHAT_INPUT_HEIGHT = 80;
+
+// --- Utility Function to Read Client-Side Cookies (Removed for brevity, assuming it is imported or available) ---
 const getCookie = (name: string): string | null => {
   if (typeof document === 'undefined') return null;
   const cookieName = name + "=";
@@ -24,16 +38,6 @@ const getCookie = (name: string): string | null => {
   return null;
 };
 
-// --- Data Structures ---
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-}
-
-// --- Constants ---
-const CHAT_INPUT_HEIGHT = 80;
-
 // --- Main Component ---
 export default function ChatLandingPage() {
   const [history, setHistory] = useState<Message[]>([]);
@@ -44,27 +48,19 @@ export default function ChatLandingPage() {
   
   const isChatEmpty = history.length === 0;
 
-  // Generate or Load Session ID on first component mount
+  // Load Session ID on first component mount
   useEffect(() => {
     let existingSessionId = getCookie("session_id");
     
     if (existingSessionId) {
-      // 1. Found an existing cookie: use it to resume the conversation state.
       sessionIdRef.current = existingSessionId;
-      console.log(`Resuming session with ID: ${existingSessionId}`);
     } else {
-      // 2. No cookie found or expired: generate a new one.
       const newId = nanoid();
       sessionIdRef.current = newId;
-      console.log(`Starting new session with ID: ${newId}`);
-      
-      // IMPORTANT: We MUST tell the backend to set this cookie on the first request.
-      // We don't set it directly here to maintain the session state consistency 
-      // managed by the FastAPI backend (which sets the TTL).
     }
-  }, []); // Run only once on mount
+  }, []); 
 
-  // Scroll to the bottom of the chat window on new message or load state change
+  // Scroll to the bottom of the chat window
   useEffect(() => {
     if (chatWindowRef.current) {
       chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
@@ -78,29 +74,22 @@ export default function ChatLandingPage() {
 
     const userMessage = input.trim();
     
-    // 1. Add user message to history
+    // Add user message to history
     setHistory(prev => [...prev, { id: nanoid(), role: 'user', content: userMessage }]);
     setInput('');
     setIsLoading(true);
 
     try {
-      // 2. Build the fetch URL for the Next.js API route
-      // IMPORTANT: Use the sessionIdRef.current value
       const apiUrl = `/api/chat?message=${encodeURIComponent(userMessage)}&session_id=${sessionIdRef.current}`;
-      
       const response = await fetch(apiUrl);
 
-      // 3. Handle cookies returned by the backend response
-      // When the backend returns a Set-Cookie header, the browser handles setting the cookie automatically.
-      
       if (!response.ok) {
         throw new Error('API failed to return a valid response.');
       }
 
       const data = await response.text();
 
-      // 4. Add Agent response to history
-      const assistantResponse = data || "Sorry, I encountered an internal error and couldn't process that.";
+      const assistantResponse = data || "Sorry, I couldn't process that.";
       
       setHistory(prev => [...prev, { id: nanoid(), role: 'assistant', content: assistantResponse }]);
 
@@ -108,16 +97,14 @@ export default function ChatLandingPage() {
       console.error("Chat error:", error);
       setHistory(prev => [
         ...prev, 
-        { id: nanoid(), role: 'assistant', content: "Error: Could not connect to the Agent backend. Please check the console." }
+        { id: nanoid(), role: 'assistant', content: "Error: Could not connect to the Agent backend. Check console for details." }
       ]);
     } finally {
-      // 5. End loading state
       setIsLoading(false);
     }
   };
 
   return (
-    // Main component JSX remains the same, relying on the logic above
     <div className="flex h-screen flex-col bg-gray-50 text-gray-800">
       
       {/* 1. Header */}
@@ -135,14 +122,12 @@ export default function ChatLandingPage() {
       > 
         <div className="max-w-4xl mx-auto">
           {isChatEmpty && !isLoading ? (
-            // Center welcome message if no messages exist
             <div className="flex h-[calc(100vh-16rem)] flex-col items-center justify-center text-center">
               <MessageSquare size={48} className="text-indigo-400 mb-4" />
               <p className="text-xl text-gray-600">Your AI Copilot for perfect movie night decisions.</p>
               <p className="text-sm text-gray-500 mt-4">Note: This session does not save history.</p>
             </div>
           ) : (
-            // Map Conversation History
             history.map((msg) => (
               <ChatMessage key={msg.id} message={msg} />
             ))
@@ -196,13 +181,52 @@ function ChatMessage({ message }: { message: Message }) {
   return (
     <div className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'} mt-4`}>
       <div
-        className={`max-w-3xl rounded-xl px-4 py-3 shadow-md ${
+        className={`max-w-3xl rounded-xl px-4 py-3 shadow-md whitespace-pre-wrap ${
           isUser
             ? 'bg-indigo-600 text-white font-medium'
             : 'bg-white text-gray-900 border border-gray-200'
         }`}
       >
-        <p dangerouslySetInnerHTML={{ __html: message.content }} />
+        {/* --- FIX: Use ReactMarkdown Here --- */}
+        {isUser ? (
+            // User messages often don't need markdown, but it's safe to run them through too
+            <p>{message.content}</p>
+        ) : (
+            <ReactMarkdown 
+                // Process the markdown text from the Agent
+                remarkPlugins={[remarkGfm]} 
+                // Customize rendering for Tailwind compatibility (optional but recommended)
+                components={{
+                    // Style links blue and underlined
+                    a: ({ node, ...props }) => (
+                        <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline hover:text-blue-800" />
+                    ),
+                    // Style lists with Tailwind padding
+                    ul: ({ node, ...props }) => (
+                        <ul {...props} className="list-disc pl-5 mt-2 space-y-1" />
+                    ),
+                    // Style headers
+                    h2: ({ node, ...props }) => (
+                        <h2 {...props} className="text-xl font-bold mt-4 mb-2 border-b pb-1" />
+                    ),
+                    // Style code blocks for chat UI
+                    code: ({ node, inline, ...props }) => {
+                        const className = props.className || '';
+                        const match = /language-(\w+)/.exec(className);
+                        return !inline ? (
+                            <pre className="bg-gray-100 p-2 rounded text-sm overflow-x-auto my-2">
+                                <code {...props} className={className} />
+                            </pre>
+                        ) : (
+                            // Inline code styling
+                            <code {...props} className="bg-gray-200 text-red-700 px-1 py-0.5 rounded text-sm" />
+                        );
+                    }
+                }}
+            >
+                {message.content}
+            </ReactMarkdown>
+        )}
       </div>
     </div>
   );
