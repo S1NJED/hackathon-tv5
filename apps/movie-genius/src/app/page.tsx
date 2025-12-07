@@ -154,7 +154,6 @@ export default function ChatLandingPage() {
 
   const sessionIdRef = useRef<string>(''); 
   const chatWindowRef = useRef<HTMLDivElement>(null);
-  // NEW: Ref for the very bottom of the list
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const isChatEmpty = history.length === 0;
@@ -168,9 +167,7 @@ export default function ChatLandingPage() {
     }
   }, []); 
 
-  // FIX: Robust Scrolling Logic
   const scrollToBottom = () => {
-    // Small timeout ensures DOM is painted before scrolling
     setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, 100);
@@ -190,7 +187,14 @@ export default function ChatLandingPage() {
     setIsLoading(true);
 
     try {
-      const systemContext = " If you suggest movies, please put the movie title in **bold** text and provide a short description or image after it.";
+      // --- UPDATED STRICT PROMPT ---
+      const systemContext = `
+      STRICT SYSTEM INSTRUCTIONS:
+      1. QUANTITY: If the user asks for a specific number of movies (e.g. "5 movies"), you MUST provide exactly that many. Do not provide fewer.
+      2. FORMATTING: You must put every movie title in **bold** (e.g. **The Matrix**). This is required for the app to detect the movie.
+      3. CONTENT: Provide a short description or image after each title.
+      `;
+      
       const fullQuery = userMessage + systemContext;
 
       const apiUrl = `/api/chat?message=${encodeURIComponent(fullQuery)}&session_id=${sessionIdRef.current}`;
@@ -294,7 +298,6 @@ export default function ChatLandingPage() {
             {/* Chat Messages */}
             <div 
                 ref={chatWindowRef}
-                // FIX: Increased bottom padding (pb-44) to ensure content clears the input bar
                 className="flex-1 overflow-y-auto p-4 md:p-6 pb-44"
             >
                 {isChatEmpty && !isLoading ? (
@@ -328,7 +331,6 @@ export default function ChatLandingPage() {
                     </div>
                 )}
                 
-                {/* FIX: Invisible element to scroll to */}
                 <div ref={messagesEndRef} />
             </div>
 
@@ -390,8 +392,7 @@ function ChatMessage({
                 components={{
                     p: ({ children }) => <p className="mb-6 last:mb-0">{children}</p>,
                     
-                    // FIX: Changed 'div' to 'span' to prevent "div cannot appear as a descendant of p" warning.
-                    // 'inline-flex' makes the span behave like a box while being valid inside a paragraph.
+                    // Fixed: Using inline-flex span instead of div to keep HTML valid
                     strong: ({ children }) => {
                         const text = String(children);
                         return (
