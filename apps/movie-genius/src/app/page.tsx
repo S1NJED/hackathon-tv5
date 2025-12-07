@@ -41,7 +41,6 @@ const Wheel = ({ items, onSpinEnd }: { items: string[], onSpinEnd: (winner: stri
 
   useEffect(() => {
     const updateSize = () => {
-      // Smaller wheel on mobile, larger on desktop
       setSize(window.innerWidth < 768 ? 280 : 380);
     };
     updateSize();
@@ -68,10 +67,10 @@ const Wheel = ({ items, onSpinEnd }: { items: string[], onSpinEnd: (winner: stri
     if (numSegments === 0) {
       ctx.beginPath();
       ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-      ctx.fillStyle = '#f3f4f6'; // gray-100
+      ctx.fillStyle = '#f3f4f6'; 
       ctx.fill();
       ctx.stroke();
-      ctx.fillStyle = '#9ca3af'; // gray-400
+      ctx.fillStyle = '#9ca3af'; 
       ctx.font = '20px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -149,13 +148,14 @@ export default function ChatLandingPage() {
   const [input, setInput] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   
-  // New States
   const [viewMode, setViewMode] = useState<'normal' | 'wheel'>('normal');
   const [wheelItems, setWheelItems] = useState<string[]>([]);
   const [winner, setWinner] = useState<string | null>(null);
 
   const sessionIdRef = useRef<string>(''); 
   const chatWindowRef = useRef<HTMLDivElement>(null);
+  // NEW: Ref for the very bottom of the list
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const isChatEmpty = history.length === 0;
 
@@ -168,10 +168,16 @@ export default function ChatLandingPage() {
     }
   }, []); 
 
+  // FIX: Robust Scrolling Logic
+  const scrollToBottom = () => {
+    // Small timeout ensures DOM is painted before scrolling
+    setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  };
+
   useEffect(() => {
-    if (chatWindowRef.current) {
-      chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
-    }
+    scrollToBottom();
   }, [history, isLoading, viewMode]);
 
   const handleSend = async (e: FormEvent<HTMLFormElement>) => {
@@ -184,7 +190,6 @@ export default function ChatLandingPage() {
     setIsLoading(true);
 
     try {
-      // Prompt Injection ensuring bold titles for parsing
       const systemContext = " If you suggest movies, please put the movie title in **bold** text and provide a short description or image after it.";
       const fullQuery = userMessage + systemContext;
 
@@ -216,15 +221,12 @@ export default function ChatLandingPage() {
   return (
     <div className="flex h-screen flex-col bg-gray-50 text-gray-800 font-sans overflow-hidden">
       
-      {/* 1. Header with CENTERED Toggle */}
+      {/* 1. Header */}
       <header className="relative flex w-full flex-shrink-0 items-center justify-between border-b border-gray-200 bg-white shadow-sm px-4 md:px-8 py-4 z-20">
-        
-        {/* Left: Title */}
         <h1 className="text-2xl md:text-3xl font-extrabold text-indigo-600 tracking-tight">
           MovieGenius
         </h1>
         
-        {/* Center: Toggle (Absolute positioning ensures it's dead center) */}
         <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
             <div className="bg-gray-100 p-1 rounded-lg flex space-x-1">
                 <button 
@@ -243,16 +245,13 @@ export default function ChatLandingPage() {
                 </button>
             </div>
         </div>
-
-        {/* Right: Spacer to balance the layout if needed, or user profile */}
         <div className="w-8"></div> 
       </header>
 
       {/* 2. Main Content Area */}
       <div className="flex flex-1 overflow-hidden relative flex-col md:flex-row">
         
-        {/* --- LEFT SIDE: WHEEL (Visible in Wheel Mode) --- */}
-        {/* Responsive: On mobile, this stacks on top. On Desktop, it takes 50% width */}
+        {/* --- LEFT SIDE: WHEEL --- */}
         {viewMode === 'wheel' && (
             <div className="w-full h-1/2 md:h-full md:w-1/2 border-b md:border-b-0 md:border-r border-gray-200 bg-slate-50 p-4 flex flex-col items-center overflow-y-auto z-10">
                 <div className="text-center mb-2 md:mb-6 mt-2">
@@ -264,7 +263,6 @@ export default function ChatLandingPage() {
                     if(typeof window !== 'undefined' && (window as any).confetti) (window as any).confetti();
                 }} />
 
-                {/* Winner Display */}
                 {winner && (
                     <div className="mt-4 p-4 bg-green-100 border border-green-300 text-green-800 rounded-xl text-center animate-bounce shadow-sm">
                         <p className="text-xs font-semibold uppercase tracking-wider">The Winner Is</p>
@@ -272,7 +270,6 @@ export default function ChatLandingPage() {
                     </div>
                 )}
 
-                {/* List of items */}
                 <div className="w-full max-w-sm mt-6 mb-10">
                     <h3 className="text-xs font-bold text-gray-400 uppercase mb-3 tracking-wide text-center">Current List ({wheelItems.length})</h3>
                     <div className="flex flex-wrap justify-center gap-2">
@@ -292,13 +289,13 @@ export default function ChatLandingPage() {
         )}
 
         {/* --- RIGHT SIDE: CHAT --- */}
-        {/* Responsive: Full width in Normal. In Wheel mode, full width on mobile (scrolling), half on desktop */}
         <div className={`flex flex-col relative h-full transition-all duration-300 ${viewMode === 'wheel' ? 'w-full md:w-1/2' : 'w-full max-w-5xl mx-auto border-x border-gray-200'}`}>
             
             {/* Chat Messages */}
             <div 
                 ref={chatWindowRef}
-                className="flex-1 overflow-y-auto p-4 md:p-6 pb-32"
+                // FIX: Increased bottom padding (pb-44) to ensure content clears the input bar
+                className="flex-1 overflow-y-auto p-4 md:p-6 pb-44"
             >
                 {isChatEmpty && !isLoading ? (
                     <div className="flex h-full flex-col items-center justify-center text-center opacity-60">
@@ -307,7 +304,7 @@ export default function ChatLandingPage() {
                         <p className="text-sm text-gray-500 mt-2">Ask for recommendations, then add them to the wheel!</p>
                     </div>
                 ) : (
-                    <div className="flex flex-col gap-y-6"> {/* Global gap between messages */}
+                    <div className="flex flex-col gap-y-6">
                         {history.map((msg) => (
                             <ChatMessage 
                                 key={msg.id} 
@@ -330,6 +327,9 @@ export default function ChatLandingPage() {
                         </div>
                     </div>
                 )}
+                
+                {/* FIX: Invisible element to scroll to */}
+                <div ref={messagesEndRef} />
             </div>
 
             {/* Input Area */}
@@ -388,14 +388,14 @@ function ChatMessage({
             <ReactMarkdown 
                 remarkPlugins={[remarkGfm]} 
                 components={{
-                    // 1. Paragraphs: Add gap between movies/blocks
                     p: ({ children }) => <p className="mb-6 last:mb-0">{children}</p>,
                     
-                    // 2. Bold Text (Movie Titles): Render the Title AND the Big Button
+                    // FIX: Changed 'div' to 'span' to prevent "div cannot appear as a descendant of p" warning.
+                    // 'inline-flex' makes the span behave like a box while being valid inside a paragraph.
                     strong: ({ children }) => {
                         const text = String(children);
                         return (
-                            <div className="inline-flex flex-col items-start my-2">
+                            <span className="inline-flex flex-col items-start my-2 align-middle">
                                 <span className="text-lg font-bold text-gray-900 block mb-2">
                                     {text}
                                 </span>
@@ -408,17 +408,15 @@ function ChatMessage({
                                         <span>Add to Wheel</span>
                                     </button>
                                 )}
-                            </div>
+                            </span>
                         );
                     },
-                    // 3. Images: styling
                     img: ({ node, ...props }) => (
                         <img 
                             {...props} 
                             className="w-full max-w-sm h-auto my-3 rounded-xl shadow-md border border-gray-100"
                         />
                     ),
-                    // 4. Lists: Ensure spacing
                     ul: ({ children }) => <ul className="space-y-4 my-4">{children}</ul>,
                     li: ({ children }) => <li className="flex flex-col">{children}</li>
                 }}
