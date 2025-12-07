@@ -12,6 +12,11 @@ Features:
 - Frontend (Next.js): `./apps/movie-genius`
 - Backend (FastAPI agent): `./src/agents/agent.py`
 
+How to Use it:
+
+- Ask anything to find a movie (A good movie with Marlon Brando)
+- In `Wheel Mode` you can add movies to the wheel by clicking "Add to wheel" then you can spin the wheel 
+
 What I did
 - Implemented the MovieGenius website in `./apps/movie-genius`.
 - Implemented the agent backend in `./src/agents/agent.py`.
