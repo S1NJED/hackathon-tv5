@@ -120,6 +120,8 @@ const Wheel = ({ items, onSpinEnd }: { items: string[], onSpinEnd: (winner: stri
 
   return (
     <div className="flex flex-col items-center justify-center relative py-4">
+
+
       <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-[calc(50%+20px)] z-10 pointer-events-none">
         <div className="w-0 h-0 border-t-[15px] border-t-transparent border-l-[30px] border-l-red-600 border-b-[15px] border-b-transparent drop-shadow-md"></div>
       </div>
@@ -376,7 +378,7 @@ function ChatMessage({
   const cleanedContent = message.content.replace(/\\n/g, '\n');
   
   return (
-    <div className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'} mb-20`}>
       <div
         className={`max-w-[90%] md:max-w-[85%] rounded-2xl px-5 py-4 shadow-sm text-base leading-relaxed ${
           isUser
