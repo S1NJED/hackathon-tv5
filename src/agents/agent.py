@@ -82,6 +82,7 @@ load_dotenv()
 API_KEY = os.getenv("GOOGLE_AI_API_KEY")
 
 app = FastAPI(title="Movie API")
+# TODO: Add a mutex for the pool
 pool = {} # session_id <==> agent instance
 
 # Workers that check the agent_pool and their TTL 
