@@ -178,6 +178,10 @@ export default function ChatLandingPage() {
 function ChatMessage({ message }: { message: Message }) {
   const isUser = message.role === 'user';
   
+  // CRITICAL FIX: Replace the literal string '\n' with a true newline character
+  // Note: We are using a regex (g flag) to replace all occurrences globally.
+  const cleanedContent = message.content.replace(/\\n/g, '\n');
+  
   return (
     <div className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'} mt-4`}>
       <div
@@ -187,44 +191,27 @@ function ChatMessage({ message }: { message: Message }) {
             : 'bg-white text-gray-900 border border-gray-200'
         }`}
       >
-        {/* --- FIX: Use ReactMarkdown Here --- */}
         {isUser ? (
-            // User messages often don't need markdown, but it's safe to run them through too
-            <p>{message.content}</p>
+            // User messages
+            <p>{cleanedContent}</p>
         ) : (
             <ReactMarkdown 
-                // Process the markdown text from the Agent
                 remarkPlugins={[remarkGfm]} 
-                // Customize rendering for Tailwind compatibility (optional but recommended)
                 components={{
-                    // Style links blue and underlined
-                    a: ({ node, ...props }) => (
-                        <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline hover:text-blue-800" />
+                    // Optional: You can remove the 'br' fix, as the parser should now see the true \n
+                    // and apply the necessary breaks due to the 'whitespace-pre-wrap' style.
+                    img: ({ node, ...props }) => (
+                        <img 
+                            {...props} 
+                            // Apply consistent Tailwind CSS classes here:
+                            className="w-full max-w-xs md:max-w-sm h-auto my-2 rounded-lg shadow-md"
+                            // Optional: Add a loading spinner/placeholder if needed
+                            loading="lazy"
+                        />
                     ),
-                    // Style lists with Tailwind padding
-                    ul: ({ node, ...props }) => (
-                        <ul {...props} className="list-disc pl-5 mt-2 space-y-1" />
-                    ),
-                    // Style headers
-                    h2: ({ node, ...props }) => (
-                        <h2 {...props} className="text-xl font-bold mt-4 mb-2 border-b pb-1" />
-                    ),
-                    // Style code blocks for chat UI
-                    code: ({ node, inline, ...props }) => {
-                        const className = props.className || '';
-                        const match = /language-(\w+)/.exec(className);
-                        return !inline ? (
-                            <pre className="bg-gray-100 p-2 rounded text-sm overflow-x-auto my-2">
-                                <code {...props} className={className} />
-                            </pre>
-                        ) : (
-                            // Inline code styling
-                            <code {...props} className="bg-gray-200 text-red-700 px-1 py-0.5 rounded text-sm" />
-                        );
-                    }
                 }}
             >
-                {message.content}
+                {cleanedContent}
             </ReactMarkdown>
         )}
       </div>
