@@ -1,0 +1,26 @@
+{
+  "projectName": "hackathon-tv5",
+  "track": "entertainment-discovery",
+  "tools": {
+    "claudeCode": true,
+    "geminiCli": true,
+    "claudeFlow": true,
+    "agenticFlow": true,
+    "flowNexus": false,
+    "adk": false,
+    "googleCloudCli": false,
+    "vertexAi": false,
+    "ruvector": false,
+    "agentDb": true,
+    "agenticSynth": false,
+    "strangeLoops": false,
+    "sparc": false,
+    "lionpride": false,
+    "agenticFramework": false,
+    "openaiAgents": false
+  },
+  "mcpEnabled": false,
+  "discordLinked": true,
+  "initialized": true,
+  "createdAt": "2025-12-05T17:34:36.733Z"
+}
