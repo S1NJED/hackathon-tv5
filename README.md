@@ -31,4 +31,7 @@ Notes
 - Keep API keys and secrets out of the repository.
 - The frontend makes requests to the backend on localhost during development.
 
+TODO: (no more time)
+	- A simple discord bot where you can ask it what movie to watch (good in servers with friends)
+
 That's all — simple local setup and a FastAPI-backed Next.js site.
